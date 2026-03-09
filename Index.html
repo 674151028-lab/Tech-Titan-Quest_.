@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IT Quest Adventure: Ultimate Masterpiece</title>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600;800&family=Mitr:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #00d2ff; --secondary: #9d50bb; --accent: #ff007f;
+            --success: #00ff88; --warning: #f1c40f; --danger: #ff4d4d;
+            --white: #ffffff; --glass: rgba(255, 255, 255, 0.85);
+        }
+
+        * { box-sizing: border-box; font-family: 'Kanit', sans-serif; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            margin: 0; min-height: 100vh; overflow: hidden;
+            background: radial-gradient(circle at 50% 50%, #ffffff 0%, #d1f4ff 100%);
+            display: flex; justify-content: center; align-items: center;
+        }
+
+        /* Background Blobs */
+        .bg-blobs { position: absolute; width: 100%; height: 100%; z-index: -1; overflow: hidden; }
+        .blob { position: absolute; border-radius: 50%; filter: blur(60px); opacity: 0.3; animation: move 15s infinite alternate ease-in-out; }
+        .blob-1 { width: 400px; height: 400px; background: var(--primary); top: -10%; left: -10%; }
+        .blob-2 { width: 500px; height: 500px; background: var(--secondary); bottom: -15%; right: -10%; }
+        .blob-3 { width: 300px; height: 300px; background: var(--accent); top: 40%; left: 50%; }
+
+        @keyframes move { from { transform: translate(0, 0); } to { transform: translate(50px, 100px); } }
+
+        #game-container {
+            width: 95%; max-width: 1000px; height: 820px;
+            background: var(--glass); backdrop-filter: blur(15px);
+            border-radius: 60px; border: 12px solid var(--white);
+            box-shadow: 0 40px 100px rgba(0, 180, 255, 0.25);
+            position: relative; overflow: hidden; display: flex; flex-direction: column;
+        }
+
+        .screen { display: none; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 40px; text-align: center; }
+        .screen.active { display: flex; animation: springIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55); }
+        @keyframes springIn { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
+
+        .title-main {
+            font-size: 5rem; margin: 0; font-family: 'Mitr'; line-height: 1;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+
+        .hud { padding: 20px 50px; display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.6); border-bottom: 4px solid #eef; }
+
+        .btn {
+            padding: 15px 35px; font-size: 1.4rem; font-weight: 800; color: white;
+            border: none; border-radius: 30px; cursor: pointer;
+            background: linear-gradient(180deg, var(--primary), #00a8cc);
+            box-shadow: 0 8px 0 #0081a7; transition: 0.1s; display: flex; align-items: center; gap: 10px; margin: 5px;
+        }
+        .btn:active { transform: translateY(4px); box-shadow: 0 4px 0 #0081a7; }
+        .btn-accent { background: linear-gradient(180deg, var(--accent), #d0006b); box-shadow: 0 8px 0 #90004a; }
+        .btn-green { background: linear-gradient(180deg, var(--success), #27ae60); box-shadow: 0 8px 0 #1e8449; }
+        .btn-small { padding: 10px 20px; font-size: 1rem; box-shadow: 0 4px 0 #666; background: #888; }
+
+        /* Game 1 Grid & Cards */
+        .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-top: 15px; }
+        .card { width: 110px; height: 140px; perspective: 1000px; cursor: pointer; }
+        .card-inner { position: relative; width: 100%; height: 100%; transition: 0.6s; transform-style: preserve-3d; }
+        .card.flipped .card-inner { transform: rotateY(180deg); }
+        .card-front, .card-back { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; border-radius: 20px; border: 5px solid white; display: flex; align-items: center; justify-content: center; font-weight: 800; box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
+        .card-front { background: linear-gradient(135deg, var(--secondary), var(--primary)); color: white; font-size: 3rem; }
+        .card-back { background: white; color: var(--secondary); transform: rotateY(180deg); font-size: 1rem; padding: 5px; }
+        
+        .card.matched { animation: matchFound 0.5s forwards; cursor: default; }
+        @keyframes matchFound { 
+            0% { transform: scale(1); }
+            50% { transform: scale(1.15); box-shadow: 0 0 30px var(--success); }
+            100% { transform: scale(1); opacity: 0.6; filter: grayscale(0.5); }
+        }
+
+        /* Feedback Popups */
+        .feedback-msg {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0);
+            padding: 30px 60px; border-radius: 40px; font-size: 3.5rem; font-weight: 800;
+            color: white; z-index: 1000; pointer-events: none; transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3); border: 8px solid white;
+        }
+        .feedback-msg.show { transform: translate(-50%, -50%) scale(1); }
+        .msg-success { background: linear-gradient(135deg, #00ff88, #27ae60); }
+        .msg-error { background: linear-gradient(135deg, #ff4d4d, #c0392b); }
+
+        .slots { min-height: 100px; width: 100%; max-width: 700px; border: 4px dashed var(--primary); border-radius: 30px; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 15px; margin: 20px 0; background: rgba(255,255,255,0.5); }
+        .word-tag { padding: 12px 24px; background: white; border: 3px solid var(--primary); border-radius: 20px; cursor: pointer; font-weight: 800; box-shadow: 0 5px 0 var(--primary); transition: 0.2s; }
+
+        #timer { background: var(--accent); color: white; padding: 5px 20px; border-radius: 50px; font-weight: 800; }
+        
+        .summary-card { background: white; padding: 40px; border-radius: 40px; box-shadow: 0 20px 50px rgba(0,0,0,0.1); border: 10px solid var(--success); max-width: 500px; width: 100%; }
+    </style>
+</head>
+<body>
+
+    <div class="bg-blobs">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+    </div>
+
+    <div id="feedback" class="feedback-msg"></div>
+
+    <div id="game-container">
+        <div id="hud" class="hud" style="display:none;">
+            <div style="font-weight: 800;">ฮีโร่: <span id="h-name" style="color:var(--secondary);">?</span></div>
+            <div id="timer">⏱️ 00:00</div>
+            <div style="font-size: 1.5rem; font-weight: 800; color: var(--warning);">⭐ <span id="h-score">0</span></div>
+        </div>
+
+        <section id="home-screen" class="screen active">
+            <div style="font-size: 7rem; animation: float 3s infinite ease-in-out;">🛡️</div>
+            <h1 class="title-main">TECH QUEST</h1>
+            <p style="font-size: 1.4rem; color: #666; font-weight: 600;">กู้ระบบคอมพิวเตอร์ที่ถูกไวรัสยึด!</p>
+            <button class="btn" onclick="playSfx('click'); showScreen('login-screen')">เข้าสู่ระบบ 🚀</button>
+        </section>
+
+        <section id="login-screen" class="screen">
+            <div style="background: white; padding: 40px; border-radius: 40px; box-shadow: 0 20px 40px rgba(0,0,0,0.1);">
+                <h2 style="font-size: 2rem;">ยินดีต้อนรับ หน่วยไอที!</h2>
+                <input type="text" id="p-input" placeholder="ใส่ชื่อเท่ๆ ของคุณ..." maxlength="10" 
+                    style="width:100%; padding:15px; border-radius:20px; border:3px solid #ddd; font-size:1.4rem; margin-bottom:20px; text-align:center;">
+                <button class="btn btn-green" style="width:100%; justify-content:center;" onclick="doLogin()">เริ่มปฏิบัติการ ✅</button>
+            </div>
+        </section>
+
+        <section id="menu-screen" class="screen">
+            <h2 style="font-size: 3rem;">ภารกิจที่ได้รับมอบหมาย</h2>
+            <div style="display:flex; gap:20px;">
+                <button class="btn" style="height:180px; width:220px; flex-direction:column;" onclick="startM1()">
+                    <span style="font-size:4rem;">🧩</span>
+                    <span>ด่าน 1: กู้คืนอุปกรณ์</span>
+                </button>
+                <button id="m2-btn" class="btn btn-accent" style="height:180px; width:220px; flex-direction:column; opacity:0.3;" onclick="startM2()">
+                    <span style="font-size:4rem;">🔐</span>
+                    <span>ด่าน 2: จัดระเบียบระบบ</span>
+                </button>
+            </div>
+            <button class="btn btn-small" style="margin-top:30px;" onclick="location.reload()">ออกจากระบบ</button>
+        </section>
+
+        <section id="m1-screen" class="screen">
+            <div style="display:flex; gap:10px; margin-bottom:10px;">
+                <button class="btn btn-small" onclick="startM1()">🔄 รีเซ็ตกระดาน</button>
+                <button class="btn btn-small" style="background:var(--warning);" onclick="useHintM1()">🔍 ใช้คำใบ้ (-20⭐)</button>
+            </div>
+            <div class="grid" id="m1-board"></div>
+        </section>
+
+        <section id="m1-summary" class="screen">
+            <div class="summary-card">
+                <div style="font-size: 6rem;">💎</div>
+                <h2 style="font-size: 2.5rem; color: var(--success); margin: 10px 0;">กู้คืนฮาร์ดแวร์สำเร็จ!</h2>
+                <div style="font-size: 1.4rem; margin-bottom: 20px;">
+                    คุณใช้เวลาไป <span id="m1-time-res" style="color:var(--accent); font-weight:800;">0</span><br>
+                    คะแนนปัจจุบัน: <span id="m1-score-res" style="color:var(--primary); font-weight:800;">0</span>
+                </div>
+                <button class="btn btn-green" style="width:100%; justify-content:center;" onclick="startM2()">ไปปลดล็อคระบบต่อ 🔓</button>
+            </div>
+        </section>
+
+        <section id="m2-screen" class="screen">
+            <div style="background:var(--accent); color:white; padding:8px 30px; border-radius:50px; font-weight:800; margin-bottom:15px;">
+                ข้อที่ <span id="m2-step">1</span> / 5
+            </div>
+            <h2 id="m2-q" style="font-size:1.8rem; color: #444; height: 60px;">?</h2>
+            <div id="m2-pool" style="display:flex; flex-wrap:wrap; justify-content:center; gap:12px;"></div>
+            <div class="slots" id="m2-slots"></div>
+            <div style="display:flex; gap:15px;">
+                <button id="m2-prev" class="btn btn-small" onclick="prevStep()">⬅️ ย้อนกลับ</button>
+                <button class="btn btn-green" onclick="checkM2()">ตรวจสอบรหัส 🔍</button>
+            </div>
+        </section>
+
+        <section id="result-screen" class="screen">
+            <div style="font-size: 8rem;">🌟</div>
+            <h1 class="title-main">ภารกิจเสร็จสิ้น!</h1>
+            <div class="summary-card" style="border-color: var(--primary); margin: 20px;">
+                <h2 id="final-score" style="font-size: 3.5rem; color: var(--primary); margin: 0;">0</h2>
+                <p style="font-weight: 800;">คุณคือสุดยอดฮีโร่ไอที!</p>
+            </div>
+            <button class="btn btn-accent" onclick="location.reload()">เริ่มใหม่เพื่อสถิติที่ดีขึ้น 🔄</button>
+        </section>
+    </div>
+
+    <script>
+        let player = { name: "", score: 0, m1Cleared: false };
+        let sec = 0, timer;
+        let m1Points = 0;
+
+        function playSfx(type) {
+            const sounds = {
+                click: 'https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3',
+                pop: 'https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3',
+                success: 'https://assets.mixkit.co/active_storage/sfx/1435/1435-preview.mp3', // เสียงปิ๊ง
+                error: 'https://assets.mixkit.co/active_storage/sfx/2573/2573-preview.mp3',
+                victory: 'https://assets.mixkit.co/active_storage/sfx/1433/1433-preview.mp3',
+                hint: 'https://assets.mixkit.co/active_storage/sfx/608/608-preview.mp3'
+            };
+            new Audio(sounds[type]).play().catch(() => {});
+        }
+
+        function showScreen(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            document.getElementById('hud').style.display = (id.includes('m1') || id.includes('m2') || id === 'menu-screen') ? 'flex' : 'none';
+            if(id.includes('m')) startTimer(); else if(id === 'result-screen' || id.includes('summary')) stopTimer();
+            updateHUD();
+        }
+
+        function showFeedback(text, type) {
+            const fb = document.getElementById('feedback');
+            fb.innerText = text;
+            fb.className = `feedback-msg show ${type === 'success' ? 'msg-success' : 'msg-error'}`;
+            setTimeout(() => fb.classList.remove('show'), 1200);
+        }
+
+        function startTimer() { 
+            if(!timer) timer = setInterval(() => {
+                sec++;
+                let m = Math.floor(sec/60).toString().padStart(2,'0');
+                let s = (sec%60).toString().padStart(2,'0');
+                document.getElementById('timer').innerText = `⏱️ ${m}:${s}`;
+            }, 1000);
+        }
+        function stopTimer() { clearInterval(timer); timer = null; }
+
+        function updateHUD() {
+            document.getElementById('h-name').innerText = player.name || "?";
+            document.getElementById('h-score').innerText = player.score;
+            if(player.m1Cleared) {
+                const b = document.getElementById('m2-btn');
+                b.style.opacity = "1"; b.style.cursor = "pointer";
+            }
+        }
+
+        function doLogin() {
+            const val = document.getElementById('p-input').value;
+            if(val) { player.name = val; playSfx('victory'); showScreen('menu-screen'); }
+        }
+
+        // --- ด่าน 1 ---
+        const m1Items = ['เมาส์', 'เมาส์', 'จอภาพ', 'จอภาพ', 'CPU', 'CPU', 'RAM', 'RAM', 'SSD', 'SSD', 'คีย์บอร์ด', 'คีย์บอร์ด'];
+        let opened = [];
+        let canClick = true;
+
+        function startM1() {
+            playSfx('click'); showScreen('m1-screen');
+            const board = document.getElementById('m1-board');
+            board.innerHTML = ''; opened = []; canClick = true;
+            [...m1Items].sort(() => Math.random() - 0.5).forEach(txt => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `<div class="card-inner"><div class="card-front">?</div><div class="card-back">${txt}</div></div>`;
+                card.onclick = () => flipCard(card);
+                board.appendChild(card);
+            });
+        }
+
+        function flipCard(card) {
+            if(!canClick || card.classList.contains('flipped') || card.classList.contains('matched')) return;
+            playSfx('pop');
+            card.classList.add('flipped');
+            opened.push(card);
+            if(opened.length === 2) {
+                canClick = false;
+                setTimeout(checkM1, 700);
+            }
+        }
+
+        function checkM1() {
+            const [a, b] = opened;
+            if(a.querySelector('.card-back').innerText === b.querySelector('.card-back').innerText) {
+                playSfx('success'); // เสียงตอนจับคู่ถูก
+                a.classList.add('matched'); b.classList.add('matched');
+                player.score += 50;
+                if(document.querySelectorAll('.matched').length === m1Items.length) {
+                    player.m1Cleared = true;
+                    setTimeout(finishM1, 500);
+                }
+            } else {
+                playSfx('error');
+                a.classList.remove('flipped'); b.classList.remove('flipped');
+            }
+            opened = []; canClick = true; updateHUD();
+        }
+
+        function useHintM1() {
+            if(player.score < 20) { showFeedback("คะแนนไม่พอ!", "error"); return; }
+            playSfx('hint');
+            player.score -= 20;
+            updateHUD();
+            const cards = document.querySelectorAll('.card:not(.matched)');
+            cards.forEach(c => c.classList.add('flipped'));
+            canClick = false;
+            setTimeout(() => {
+                cards.forEach(c => c.classList.remove('flipped'));
+                canClick = true;
+            }, 1500);
+        }
+
+        function finishM1() {
+            playSfx('victory');
+            document.getElementById('m1-time-res').innerText = document.getElementById('timer').innerText;
+            document.getElementById('m1-score-res').innerText = player.score;
+            showScreen('m1-summary');
+        }
+
+        // --- ด่าน 2 ---
+        const m2Data = [
+            { q: "ต้องการเปิดโฟลเดอร์ที่ชื่อ 'Work'?", a: ["เลื่อนเมาส์", "ไปที่โฟลเดอร์", "ดับเบิลคลิก"] },
+            { q: "วิธีปิดคอมพิวเตอร์อย่างถูกวิธี?", a: ["ไปที่เมนู Start", "เลือก Shut down", "รอเครื่องดับ"] },
+            { q: "อุปกรณ์ที่ประมวลผลเหมือนสมอง?", a: ["รับข้อมูล", "ส่งให้ CPU", "ประมวลผล"] },
+            { q: "ต้องการพิมพ์ตัวอักษรพิมพ์ใหญ่?", a: ["กดปุ่ม Shift", "ค้างไว้", "แล้วกดตัวอักษร"] },
+            { q: "การเก็บไฟล์เข้าแฟลชไดรฟ์?", a: ["เสียบแฟลชไดรฟ์", "เลือกไฟล์", "ลากใส่แฟลชไดรฟ์"] }
+        ];
+        let step = 0;
+
+        function startM2() {
+            step = 0; playSfx('click'); showScreen('m2-screen'); loadM2();
+        }
+
+        function loadM2() {
+            document.getElementById('m2-step').innerText = step + 1;
+            document.getElementById('m2-q').innerText = m2Data[step].q;
+            document.getElementById('m2-prev').style.display = (step === 0) ? 'none' : 'block';
+            const pool = document.getElementById('m2-pool');
+            const slots = document.getElementById('m2-slots');
+            pool.innerHTML = ''; slots.innerHTML = '';
+            [...m2Data[step].a].sort(() => Math.random() - 0.5).forEach(txt => {
+                const tag = document.createElement('div');
+                tag.className = 'word-tag'; tag.innerText = txt;
+                tag.onclick = () => { playSfx('pop'); if(tag.parentElement.id === 'm2-pool') slots.appendChild(tag); else pool.appendChild(tag); };
+                pool.appendChild(tag);
+            });
+        }
+
+        function prevStep() { if(step > 0) { step--; loadM2(); } }
+
+        function checkM2() {
+            const userAns = Array.from(document.getElementById('m2-slots').children).map(e => e.innerText);
+            if(JSON.stringify(userAns) === JSON.stringify(m2Data[step].a)) {
+                playSfx('success'); // เสียงเมื่อตอบถูกแต่ละข้อ
+                showFeedback("ถูกต้องงงง! ✨", "success");
+                player.score += 100;
+                step++;
+                setTimeout(() => {
+                    if(step < m2Data.length) loadM2();
+                    else { playSfx('victory'); showScreen('result-screen'); document.getElementById('final-score').innerText = `คะแนนรวม: ${player.score}`; }
+                }, 1000);
+            } else {
+                playSfx('error');
+                showFeedback("ลำดับยังผิดอยู่! ❌", "error");
+            }
+            updateHUD();
+        }
+
+        const style = document.createElement('style');
+        style.innerHTML = `@keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-20px); } }`;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>
